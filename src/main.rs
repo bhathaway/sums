@@ -43,7 +43,7 @@ mod sums {
 
     impl fmt::Display for NonincSum {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            #[derive(Clone)]
+            #[derive(Clone, PartialEq)]
             struct RepeatedNum {
                 num: u32,
                 times: u32,
@@ -71,14 +71,19 @@ mod sums {
                 }
             }
 
-            let mut msg: String = "< ".to_owned();
-            for rn in compressed {
+            let mut msg: String = "<".to_owned();
+            for rn in &compressed {
+                let comma = match compressed.first() {
+                    Some(val) => if rn == val { "" } else { ", " },
+                    _ => "",
+                };
+
                 if rn.times > 2 {
-                    msg += format!("{}({}) ", rn.times, rn.num).as_str();
+                    msg += format!("{}{}({})", comma, rn.times, rn.num).as_str();
                 } else if rn.times == 2 {
-                    msg += format!("{} {} ", rn.num, rn.num).as_str();
+                    msg += format!("{}{}, {}", comma, rn.num, rn.num).as_str();
                 } else if rn.times == 1 {
-                    msg += format!("{} ", rn.num).as_str();
+                    msg += format!("{}{}", comma, rn.num).as_str();
                 } else {
                     panic!("Term should not occur zero times!");
                 }
@@ -104,6 +109,12 @@ mod tests {
             Err(_) => (),
         }
     }
+
+    fn expect_display(v: Vec<u32>, disp: &'static str) {
+        let sum = NonincSum::new(v).expect("valid args");
+        assert_eq!(format!("{}", sum), disp);
+    }
+    
     #[test]
     fn empty_fails() {
         new_should_fail([].to_vec(), "empty");
@@ -122,5 +133,20 @@ mod tests {
     #[test]
     fn increase_fails() {
         new_should_fail([1, 2, 3].to_vec(), "increasing elements");
+    }
+
+    #[test]
+    fn two_element_display() {
+        expect_display([1, 1].to_vec(), "<1, 1>");
+    }
+
+    #[test]
+    fn three_same_display() {
+        expect_display([1, 1, 1].to_vec(), "<3(1)>");
+    }
+
+    #[test]
+    fn complex_dispayl() {
+        expect_display([5, 5, 5, 4, 4, 2, 2, 2, 2].to_vec(), "<3(5), 4, 4, 4(2)>");
     }
 }
