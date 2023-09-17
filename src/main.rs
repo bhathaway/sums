@@ -58,8 +58,8 @@ mod sums {
             for idx in 1..self.terms.len() {
                 match compressed.last_mut() {
                     Some(last) => {
-                        if self.terms[idx] == (*last).num {
-                            (*last).times += 1
+                        if self.terms[idx] == last.num {
+                            last.times += 1
                         } else {
                             compressed.push(RepeatedNum {
                                 num: self.terms[idx],
@@ -74,7 +74,13 @@ mod sums {
             let mut msg: String = "<".to_owned();
             for rn in &compressed {
                 let comma = match compressed.first() {
-                    Some(val) => if rn == val { "" } else { ", " },
+                    Some(val) => {
+                        if rn == val {
+                            ""
+                        } else {
+                            ", "
+                        }
+                    }
                     _ => "",
                 };
 
@@ -114,7 +120,7 @@ mod tests {
         let sum = NonincSum::new(v).expect("valid args");
         assert_eq!(format!("{}", sum), disp);
     }
-    
+
     #[test]
     fn empty_fails() {
         new_should_fail([].to_vec(), "empty");
