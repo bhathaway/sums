@@ -8,21 +8,29 @@ mod sums {
     }
 
     impl NonincSum {
-        pub fn new(v: Vec<u32>) -> NonincSum {
-            // Let's do all the checks first:
-            // Need at least two values.
-            assert!(v.len() > 1);
+        pub fn new(v: Vec<u32>) -> Result<NonincSum, &'static str> {
+            // FIXME: Do this without `mut`
+            let any_increase = || -> bool {
+                let mut result = false;
+                for idx in 1..v.len() {
+                    if v[idx - 1] < v[idx] {
+                        result = true;
+                        break;
+                    }
+                }
+                result
+            };
 
-            // All positive:
-            assert!(v.iter().all(|&x| x > 0));
-
-            // Vector is non-increasing:
-            for idx in 1..v.len() {
-                assert!(v[idx - 1] >= v[idx]);
+            if v.len() < 2 {
+                Err("Need at lest two elements")
+            } else if v.iter().any(|&x| x <= 0) {
+                Err("All elements must be positive")
+            } else if any_increase() {
+                Err("Element sequence must be non-increasing")
+            } else {
+                let s = v.iter().sum();
+                Ok(NonincSum { sum: s, terms: v })
             }
-
-            let s = v.iter().sum();
-            NonincSum { sum: s, terms: v }
         }
     }
 
@@ -82,44 +90,37 @@ mod sums {
 }
 
 fn main() {
-    // This correctly fails:
-    // let x = sums::NonincSum::new([0].to_vec());
+    // TASK: Generate exhaustive unique sums for small numbers.
+    // Could start with 2.
+}
 
-    // This correctly fails:
-    // let x = sums::NonincSum::new([0, 0].to_vec());
+#[cfg(test)]
+mod tests {
+    use crate::sums::NonincSum;
 
-    // This correctly fails:
-    //let x = sums::NonincSum::new([1, 2, 3].to_vec());
-
-    let u = sums::NonincSum::new([3, 2, 1].to_vec());
-    let v = sums::NonincSum::new([3, 2, 1].to_vec());
-    assert!(u == v);
-    let x = sums::NonincSum::new([5, 3, 1].to_vec());
-    if x > v {
-        println!("PartialOrd is working!");
+    fn new_should_fail(v: Vec<u32>, desc: &'static str) {
+        match NonincSum::new(v) {
+            Ok(_) => panic!("{} should fail", desc),
+            Err(_) => (),
+        }
     }
-    //let u = sums::NonincSum::new([2, 2, 2].to_vec());
-    println!("{}", u);
-
-
-    let a = sums::NonincSum::new([2, 1, 1].to_vec());
-    let b = sums::NonincSum::new([1, 1, 1, 1].to_vec());
-    if a < b {
-        println!("{} is less than {}", a, b);
-    } else {
-        println!("{} is not less than {}", a, b);
+    #[test]
+    fn empty_fails() {
+        new_should_fail([].to_vec(), "empty");
     }
 
-    if b < x {
-        println!("{} is less than {}", b, x);
-    } else {
-        println!("{} is not less than {}", b, x);
+    #[test]
+    fn single_element_fails() {
+        new_should_fail([1].to_vec(), "single element");
     }
 
-    let c = sums::NonincSum::new([6, 2, 1].to_vec());
-    if x < c {
-        println!("{} is less than {}", x, c);
-    } else {
-        println!("{} is not less than {}", x, c);
+    #[test]
+    fn zero_fails() {
+        new_should_fail([1, 0].to_vec(), "zero");
+    }
+
+    #[test]
+    fn increase_fails() {
+        new_should_fail([1, 2, 3].to_vec(), "increasing elements");
     }
 }
