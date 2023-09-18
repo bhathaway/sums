@@ -1,14 +1,14 @@
 mod sums {
     use std::fmt;
 
-    #[derive(Debug, PartialEq, PartialOrd)]
+    #[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Clone)]
     pub struct NonincSum {
-        sum: u32,
-        terms: Vec<u32>,
+        sum: usize,
+        terms: Vec<usize>,
     }
 
     impl NonincSum {
-        pub fn new(v: Vec<u32>) -> Result<NonincSum, &'static str> {
+        pub fn new(v: Vec<usize>) -> Result<NonincSum, &'static str> {
             // FIXME: Do this without `mut`
             let any_increase = || -> bool {
                 let mut result = false;
@@ -62,8 +62,8 @@ mod sums {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             #[derive(Clone, PartialEq)]
             struct RepeatedNum {
-                num: u32,
-                times: u32,
+                num: usize,
+                times: usize,
             }
 
             let mut compressed = [RepeatedNum {
@@ -117,35 +117,82 @@ mod sums {
     }
 }
 
+use std::collections::HashSet;
+fn find_sums_restrict_terms(sum: usize, terms: usize) {
+    assert!(terms <= sum);
+    let mut unique_sums: HashSet<sums::NonincSum> = HashSet::new();
+    let mut frontier: Vec<sums::NonincSum> = vec![];
+
+    // First seed the frontier before starting.
+    let mut seed_terms: Vec<usize> = vec![];
+    seed_terms.push(sum - (terms - 1));
+    for _ in 1..terms {
+        seed_terms.push(1);
+    }
+    let seed = sums::NonincSum::new(seed_terms).expect("valid args");
+    frontier.push(seed.clone());
+    unique_sums.insert(seed);
+
+    while frontier.len() > 0 {
+        let mut next_frontier: Vec<sums::NonincSum> = vec![];
+        for s in frontier {
+            for i in 0..terms {
+                for k in (i + 1)..terms {
+                    match s.generate(i, k) {
+                        Some(x) => {
+                            if unique_sums.insert(x.clone()) {
+                                next_frontier.push(x)
+                            }
+                        }
+                        None => (),
+                    }
+                }
+            }
+        }
+
+        frontier = next_frontier;
+    }
+
+    // Print the results
+    for s in unique_sums {
+        println!("{}", s);
+    }
+}
+
+fn find_sums(sum: usize) {
+    for num_terms in 2..=sum {
+        find_sums_restrict_terms(sum, num_terms)
+    }
+}
+
 fn main() {
-    // TASK: Generate exhaustive unique sums for small numbers.
-    // Could start with 2.
+    find_sums(10);
 }
 
 #[cfg(test)]
 mod tests {
     use crate::sums::NonincSum;
 
-    fn new_should_fail(v: Vec<u32>, desc: &'static str) {
+    fn new_should_fail(v: Vec<usize>, desc: &'static str) {
         match NonincSum::new(v) {
             Ok(_) => panic!("{} should fail", desc),
             Err(_) => (),
         }
     }
 
-    fn expect_display(v: Vec<u32>, disp: &'static str) {
+    fn expect_display(v: Vec<usize>, disp: &'static str) {
         let sum = NonincSum::new(v).expect("valid args");
         assert_eq!(format!("{}", sum), disp);
     }
 
-    fn expect_generate(u: Vec<u32>, i: usize, k: usize, v: Vec<u32>) {
+    fn expect_generate(u: Vec<usize>, i: usize, k: usize, v: Vec<usize>) {
         let sum = NonincSum::new(u).expect("valid args");
         let g = sum.generate(i, k).expect("valid indices");
         let e = NonincSum::new(v).expect("valid args");
         assert_eq!(g, e);
     }
 
-    fn expect_generate_nothing(u: Vec<u32>, i: usize, k: usize) {
+    fn expect_generate_nothing(u: Vec<usize>, i: usize, k: usize) {
         let sum = NonincSum::new(u).expect("valid args");
         match sum.generate(i, k) {
             Some(_) => panic!(
