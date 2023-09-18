@@ -1,7 +1,7 @@
 mod sums {
     use std::fmt;
 
-    #[derive(PartialEq, PartialOrd)]
+    #[derive(Debug, PartialEq, PartialOrd)]
     pub struct NonincSum {
         sum: u32,
         terms: Vec<u32>,
@@ -30,6 +30,23 @@ mod sums {
             } else {
                 let s = v.iter().sum();
                 Ok(NonincSum { sum: s, terms: v })
+            }
+        }
+
+        // This method attempts to create a new sum by decrementing the
+        // term at `dec` and incrementing at `inc`. If it's still a valid
+        // sum, return it.
+        pub fn generate(&self, dec: usize, inc: usize) -> Option<NonincSum> {
+            assert!(dec < inc);
+            let mut v = self.terms.clone();
+            assert!(dec < v.len());
+            assert!(inc < v.len());
+
+            v[dec] -= 1;
+            v[inc] += 1;
+            match NonincSum::new(v) {
+                Ok(ns) => Some(ns),
+                Err(_) => None,
             }
         }
     }
@@ -121,6 +138,24 @@ mod tests {
         assert_eq!(format!("{}", sum), disp);
     }
 
+    fn expect_generate(u: Vec<u32>, i: usize, k: usize, v: Vec<u32>) {
+        let sum = NonincSum::new(u).expect("valid args");
+        let g = sum.generate(i, k).expect("valid indices");
+        let e = NonincSum::new(v).expect("valid args");
+        assert_eq!(g, e);
+    }
+
+    fn expect_generate_nothing(u: Vec<u32>, i: usize, k: usize) {
+        let sum = NonincSum::new(u).expect("valid args");
+        match sum.generate(i, k) {
+            Some(_) => panic!(
+                "Generating from {} at index {} and {} should yield nothing",
+                sum, i, k
+            ),
+            None => (),
+        }
+    }
+
     #[test]
     fn empty_fails() {
         new_should_fail([].to_vec(), "empty");
@@ -152,7 +187,21 @@ mod tests {
     }
 
     #[test]
-    fn complex_dispayl() {
+    fn complex_display() {
         expect_display([5, 5, 5, 4, 4, 2, 2, 2, 2].to_vec(), "<3(5), 4, 4, 4(2)>");
+    }
+
+    #[test]
+    fn generate_basic() {
+        let v = [7, 3, 1].to_vec();
+        expect_generate(v.clone(), 0, 1, [6, 4, 1].to_vec());
+        expect_generate(v.clone(), 1, 2, [7, 2, 2].to_vec());
+        expect_generate(v.clone(), 0, 2, [6, 3, 2].to_vec());
+    }
+
+    #[test]
+    fn generate_nothing() {
+        expect_generate_nothing([1, 1].to_vec(), 0, 1);
+        expect_generate_nothing([4, 3, 2].to_vec(), 0, 1);
     }
 }
