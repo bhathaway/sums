@@ -1,7 +1,7 @@
 mod sums {
     use std::fmt;
 
-    #[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Clone)]
+    #[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Clone, Ord)]
     pub struct NonincSum {
         sum: usize,
         terms: Vec<usize>,
@@ -44,6 +44,29 @@ mod sums {
 
             v[dec] -= 1;
             v[inc] += 1;
+            match NonincSum::new(v) {
+                Ok(ns) => Some(ns),
+                Err(_) => None,
+            }
+        }
+
+        // Appends `1` to the end of the terms, thereby increasing the sum
+        // This method will always succeed
+        pub fn append_at_end(&self) -> NonincSum {
+            let NonincSum { sum: s, terms: v } = self;
+            let one = vec![1];
+            let new_terms = [&v[..], &one[..]].concat();
+            NonincSum { sum: s + 1, terms: new_terms }
+        }
+
+        // Attempts to add `1` to the last term. If it violates the
+        // constraint, returns None.
+        pub fn inc_last(&self) -> Option<NonincSum> {
+            let mut v = self.terms.clone();
+            let len = v.len();
+            assert!(len > 0);
+            v[len - 1] += 1;
+            //v.last().unwrap() += 1;
             match NonincSum::new(v) {
                 Ok(ns) => Some(ns),
                 Err(_) => None,
@@ -118,7 +141,7 @@ mod sums {
 }
 
 use std::collections::HashSet;
-fn find_sums_restrict_terms(sum: usize, terms: usize) {
+fn find_sums_restrict_terms(sum: usize, terms: usize) -> usize {
     assert!(terms <= sum);
     let mut unique_sums: HashSet<sums::NonincSum> = HashSet::new();
     let mut frontier: Vec<sums::NonincSum> = vec![];
@@ -154,19 +177,67 @@ fn find_sums_restrict_terms(sum: usize, terms: usize) {
     }
 
     // Print the results
-    for s in unique_sums {
+    for s in &unique_sums {
         println!("{}", s);
     }
+
+    unique_sums.len()
 }
 
-fn find_sums(sum: usize) {
+fn find_sums(sum: usize) -> usize {
+    let mut s = 0;
     for num_terms in 2..=sum {
-        find_sums_restrict_terms(sum, num_terms)
+        s += find_sums_restrict_terms(sum, num_terms)
     }
+
+    s
+}
+
+// returns solutions for N from the solutions to N-1
+fn next_layer(sum: usize, previous_sums: HashSet<sums::NonincSum>) -> HashSet<sums::NonincSum> {
+    let mut unique_sums: HashSet<sums::NonincSum> = HashSet::new();
+    unique_sums.insert(sums::NonincSum::new([sum - 1, 1].to_vec()).unwrap());
+
+    for s in previous_sums {
+        unique_sums.insert(s.append_at_end());
+        match s.inc_last() {
+            Some(ns) => unique_sums.insert(ns),
+            None => false,
+        };
+    }
+
+    unique_sums
+}
+
+fn find_sums_alt(sum: usize) -> usize {
+    let mut working_set: HashSet<sums::NonincSum> = HashSet::new();
+
+    for s in 2..=sum {
+        working_set = next_layer(s, working_set);
+    }
+
+    let mut sorted: Vec<sums::NonincSum> = Vec::new();
+    for ns in working_set {
+        sorted.push(ns);
+    }
+
+    sorted.sort();
+    for ns in &sorted {
+        println!("{}", ns);
+    }
+
+    sorted.len()
 }
 
 fn main() {
-    find_sums(10);
+    let args = std::env::args().nth(1);
+
+    let sum = args.expect("no arg").parse::<usize>().ok().expect("not usize");
+    println!("Brute force:");
+    println!("Total: {}", find_sums(sum));
+    println!("");
+    println!("Dynamic programming:");
+    println!("Total: {}", find_sums_alt(sum));
 }
 
 #[cfg(test)]
@@ -250,5 +321,21 @@ mod tests {
     fn generate_nothing() {
         expect_generate_nothing([1, 1].to_vec(), 0, 1);
         expect_generate_nothing([4, 3, 2].to_vec(), 0, 1);
+    }
+
+    #[test]
+    fn append_at_end_basic() {
+        let ns = NonincSum::new([6, 4, 1].to_vec()).unwrap();
+        let next = ns.append_at_end();
+        let expect = NonincSum::new([6, 4, 1, 1].to_vec()).unwrap();
+        assert_eq!(next, expect);
+    }
+
+    #[test]
+    fn inc_last_basic() {
+        let ns = NonincSum::new([5, 5, 3].to_vec()).unwrap();
+        let next = ns.inc_last().unwrap(); // Should have a result.
+        let expect = NonincSum::new([5, 5, 4].to_vec()).unwrap();
+        assert_eq!(next, expect);
     }
 }
